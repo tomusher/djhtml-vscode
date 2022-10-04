@@ -265,4 +265,3 @@ export type ResolvedVersionInfo = {
   readonly micro: number;
   readonly release: PythonVersionRelease;
 };
-Footer;
