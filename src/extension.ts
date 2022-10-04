@@ -1,40 +1,76 @@
 import * as vscode from "vscode";
 import { spawn } from "child_process";
-import { resolveSoa } from "dns";
+import { getTextEdits } from "./edits";
+import { ProposedExtensionAPI } from "./types";
+import { once } from "events";
 
-export function activate(context: vscode.ExtensionContext) {
-  vscode.languages.registerDocumentFormattingEditProvider("django-html", {
-    provideDocumentFormattingEdits(
-      document: vscode.TextDocument
-    ): Promise<vscode.TextEdit[]> {
-      return new Promise<vscode.TextEdit[]>((resolve, _) => {
-        let stdout = "";
+const SUPPORTED_DOCUMENT_SELECTOR: vscode.DocumentSelector = [
+  "django-html",
+  "jinja",
+];
+const DJHTML_MODULE = "djhtml";
 
-        const process = spawn("djhtml", [document.uri.fsPath]);
+export async function activate(context: vscode.ExtensionContext) {
+  const pythonExtension = vscode.extensions.getExtension("ms-python.python");
+  if (pythonExtension) {
+    if (!pythonExtension.isActive) {
+      await pythonExtension.activate();
+    }
+  } else {
+    vscode.window.showErrorMessage(
+      "Failed to activate ms-python.python extension"
+    );
+    return;
+  }
 
-        process.stderr.on("data", (data: String) => {
-          vscode.window.showErrorMessage(`djhtml failed with error: ${data}`);
-          resolve([]);
-        });
+  const pythonApi: ProposedExtensionAPI =
+    pythonExtension.exports as ProposedExtensionAPI;
 
-        process.stdout.on("data", (data: String) => {
-          stdout += data;
-        });
+  vscode.languages.registerDocumentFormattingEditProvider(
+    SUPPORTED_DOCUMENT_SELECTOR,
+    {
+      async provideDocumentFormattingEdits(
+        document: vscode.TextDocument
+      ): Promise<vscode.TextEdit[]> {
+        const environment = pythonApi.environment.getActiveEnvironmentPath();
+        if (environment && environment.path) {
+          let stdout = "";
+          let edits: vscode.TextEdit[] = [];
+          const process = spawn(environment.path, [
+            "-m",
+            DJHTML_MODULE,
+            document.uri.fsPath,
+          ]);
 
-        process.on("close", (code) => {
-          if (code == 0) {
-            const firstLine = document.lineAt(0);
-            const lastLine = document.lineAt(document.lineCount - 1);
-            const range = new vscode.Range(
-              firstLine.range.start,
-              lastLine.range.end
-            );
-            resolve([vscode.TextEdit.replace(range, stdout)]);
-          } else {
-            resolve([]);
-          }
-        });
-      });
-    },
-  });
+          process.stderr.on("data", (data: String) => {
+            if (data.includes(`No module named ${DJHTML_MODULE}`)) {
+              vscode.window.showErrorMessage(
+                `djhtml is not installed in the current Python environment`
+              );
+            } else {
+              vscode.window.showErrorMessage(
+                `djhtml failed with error: ${data}`
+              );
+            }
+          });
+
+          process.stdout.on("data", (data: String) => {
+            stdout += data;
+          });
+
+          process.on("close", (code) => {
+            if (code === 0) {
+              edits = getTextEdits(document.getText(), stdout);
+            }
+          });
+
+          await once(process, "close");
+          return edits;
+        } else {
+          vscode.window.showErrorMessage("No Python environment selected");
+        }
+        return [];
+      },
+    }
+  );
 }

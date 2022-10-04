@@ -7,3 +7,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [Unreleased]
 
 - Initial release
+
+## [1.0.0] - 2022-10-04
+
+### Changed
+
+- Updated to use Python extension APIs
+- Uses Python extension utilities to generate a diff from djhtml output
