@@ -32,8 +32,11 @@ export async function activate(context: vscode.ExtensionContext) {
       async provideDocumentFormattingEdits(
         document: vscode.TextDocument
       ): Promise<vscode.TextEdit[]> {
-        const environmentPath = pythonApi.environment.getActiveEnvironmentPath();
-        const environment = await pythonApi.environment.resolveEnvironment(environmentPath);
+        const environmentPath =
+          pythonApi.environments.getActiveEnvironmentPath();
+        const environment = await pythonApi.environments.resolveEnvironment(
+          environmentPath
+        );
 
         if (environment && environment.path) {
           let stdout = "";

@@ -20,3 +20,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ### Fixed
 
 - Use Python extension's `resolveEnvironment` API to attempt to solve issues with determining the environment
+
+## [1.0.2] - 2022-11-15
+
+### Fixed
+
+- Catch up with vscode-python's proposed API changes (`environment` -> `environments`)
